@@ -1,0 +1,1 @@
+Get["NormalForm`NormalForm`"];

@@ -1,0 +1,4 @@
+## Ignore Mathematica binary files, including notebooks:
+*.nb
+*.mx
+*.wdx
