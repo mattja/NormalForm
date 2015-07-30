@@ -972,11 +972,10 @@ TransformNoisyHopf[rhs_?VectorQ,
 
         (* Change to rotating frame *)
         (* Angular frequency at Hopf point: *)
-        \[Omega] = (reducedPolar[[2]] /. Thread[(u~Join~\[Xi])->0] //
-                Expand) /. r->0 // Simplify;
+        \[Omega] = (reducedPolar[[2]] /.
+             Thread[Join[u,\[Xi],bifParams]->0] // Expand) /. r->0 // Simplify;
         dPrint["\[Omega] == ", \[Omega]];
-        rotPolar = reducedPolar - {0,\[Omega]} /. 
-                   \[Theta]->\[Phi]+\[Omega] t;
+        rotPolar = reducedPolar - {0,\[Omega]} /. \[Theta]->\[Phi]+\[Omega] t;
         dPrint["Reduced system in rotating frame  \[Phi]=\[Theta]-\[Omega]t:"];
         dPrint[OverDot/@{r,\[Phi]} // MatrixForm, " = ",
                rotPolar//ArrangePolar//NN//MatrixForm];
