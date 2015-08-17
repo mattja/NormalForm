@@ -60,10 +60,16 @@ TransformNoisyHopf::usage =
  been transformed to Jordan real form, with Hopf in first two variables.";
 
 ToPolar::usage = 
-"ToPolar[v, {x1,...,xn}, {r, \[Theta]}] transforms a contravariant vector\
- field v from Cartesian to cylindrical coordinates. (the first two\
- variables {x1, x2} are changed to polar variables {r, \[Theta]}).\
- v should be given as a vector with each entry a polynomial in the {xi}";
+"ToPolar[v, {x1,...,xn}, {r, \[Theta]}] transforms a n-dimensional flow,\
+ represented as a contravariant vector field v from Cartesian to cylindrical \
+ coordinates. (The first two variables {x1, x2} are changed to polar variables \
+ {r, \[Theta]}). Each component of v should be an expression in the {xi}";
+
+ToCartesian::usage = 
+"ToCartesian[v, {r, \[Theta]}, {x1, x2,...}] transforms a n-dimensional flow, \
+ represented as a contravariant vector field v from cylindrical to Cartesian \
+ coordinates. (The first two components of v are assumed to be in polar \
+ coordinates {r, \[Theta]}).";
 
 BalanceMatrix::usage =
 "BalanceMatrix[A] returns the pair {T, B} where T is a similarity\
@@ -214,34 +220,36 @@ PolyFieldDualBasis[m_,u_] :=
 L[A_?MatrixQ, q_, u_?SymbolListQ] := D[q,{u,1}].A.u - A.q /; PolyFieldQ[q, u]
 
 
-(* Convert n-dimensional flow (which is represented as polynomial vector field)
+(* Convert n-dimensional flow (which is represented as a vector field)
    from Cartesian to cylindrical coordinates.
    The first two dimensions are put in polar form. *)
-ToPolar[polyField_, u_?SymbolListQ, {r_Symbol, \[Theta]_Symbol}] :=
+ToPolar[field_?VectorQ, u_?SymbolListQ, {r_Symbol, \[Theta]_Symbol}] :=
     Module[{udotpolar, thetadot, rdot, therest},
-        udotpolar = 
-            polyField /.  {u[[1]]->r Cos[\[Theta]],u[[2]]->r Sin[\[Theta]]};
+        udotpolar = field /. {u[[1]]->r Cos[\[Theta]],u[[2]]->r Sin[\[Theta]]};
         thetadot = (Cos[\[Theta]] udotpolar[[2]] - 
                     Sin[\[Theta]]udotpolar[[1]]) /r // TrigFactor;
         rdot = (Cos[\[Theta]]udotpolar[[1]] + 
                 Sin[\[Theta]]udotpolar[[2]]) // TrigFactor;
         therest = udotpolar[[3;;]];
         {rdot,thetadot}~Join~therest
-    ] /; PolyFieldQ[polyField, u]
+    ]
 
-(* Convert n-dimensional flow (which is represented as polynomial vector field)
+(* Convert n-dimensional flow (which is represented as a vector field)
    from cylindrical to Cartesian coordinates.
    The first two dimensions of the input are assumed to be in polar form. *)
-ToCartesian[polyField_, {r_Symbol, \[Theta]_Symbol}, u_?SymbolListQ] :=
-    Module[{u1dot, u2dot},
-        u1dot = (Cos[\[Theta]]polyField[[1]] - r Sin[\[Theta]]polyField[[2]] /.
+ToCartesian[field_?VectorQ, {r_Symbol, \[Theta]_Symbol}, u_?SymbolListQ] :=
+    Module[{u1dot, u2dot, therest},
+        u1dot = (Cos[\[Theta]]field[[1]] - r Sin[\[Theta]]field[[2]] /.
             {r->Sqrt[u[[1]]^2+u[[2]]^2], \[Theta]->ArcTan[u[[1]],u[[2]]]}) // 
             TrigExpand;
-        u2dot = (Sin[\[Theta]]polyField[[1]]+r Cos[\[Theta]]polyField[[2]] /.
+        u2dot = (Sin[\[Theta]]field[[1]]+r Cos[\[Theta]]field[[2]] /.
             {r->Sqrt[u[[1]]^2+u[[2]]^2], \[Theta]->ArcTan[u[[1]],u[[2]]]}) // 
             TrigExpand;
-        {u1dot,u2dot}~Join~polyField[[3;;]]
-    ] /; PolyFieldQ[polyField, {r, \[Theta]}~Join~u[[3;;]]]
+        therest = (field[[3;;]] /.
+            {r->Sqrt[u[[1]]^2+u[[2]]^2], \[Theta]->ArcTan[u[[1]],u[[2]]]}) //
+            TrigExpand;
+        {u1dot,u2dot}~Join~therest
+    ]
 
 
 (* Mathematica only has proper built-in support for univariate power series. 
