@@ -1062,15 +1062,16 @@ TransformNoisyHopf[rhs_?VectorQ,
         dPrint["Averaged normal form system in Stratonovich form: "];
         dPrint[OverDot/@{r,\[Phi]}//MatrixForm, " = ",
                avPolarSys//Arrange//NN//MatrixForm];
-        (**
-        avCartesianSys = ToCartesian[avPolarSys,{r,\[Theta]}, u];
-        avCartesianSys = 
-            Normal@MultiSeries[avCartesianSys, asympScaling, maxOrder];
-        dPrint["In Cartesian coords: ", avCartesianSys//NN//MatrixForm];
-        **)
 
         (* change back to non-rotating frame: *)
-        avPolarSys + {0, \[Omega]} // Simplify // Arrange
+        result = avPolarSys + {0, \[Omega]};
+
+        (* rescale r so that the coefficient of the r^3 term is -1 *)
+        coeff = SeriesCoefficient[result[[1]], {r, 0, 3}];
+        result = result /. r -> r/Sqrt[-coeff];
+        result[[1]] = result[[1]] * Sqrt[-coeff];
+
+        result // Simplify // Arrange
     ]
 
 
