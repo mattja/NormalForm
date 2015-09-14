@@ -1001,7 +1001,7 @@ TransformNoisyHopf[rhs_?VectorQ,
             1/2 Tr[Transpose[D[G,{{r,\[Phi]}}].G,{3,1,2}],Plus,2];
         dPrint["Stratonovich to Ito drift adjustment: ",
                stratToIto//NN//MatrixForm];
-        itoDrift = stratonovichDrift + stratToIto // Simplify;
+        itoDrift = stratonovichDrift + stratToIto // Expand // Chop;
         itoRHS = itoDrift + noiseTerms;
         dPrint["Ito form:"];
         dPrint[OverDot /@ {r, \[Phi]} // MatrixForm, " = ",
