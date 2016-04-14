@@ -702,6 +702,7 @@ simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ},
                "in this basis."];
         A = D[OrderTerms[R, 1], {u}];
         LL = Outer[ApplyND[#1, #2, u]&, dualbasis, Map[L[A,#,u]&,basis], 1];
+        (* dPrint["LL = ", LL//MatrixForm]; *)
         (* dPrint["condition number of LL is ",
                SingularValueList[LL] // Max[#]/Min[#]&]; *)
         If[MatrixRank[LL]==basissize,
