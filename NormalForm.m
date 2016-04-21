@@ -304,43 +304,6 @@ MultiSeries[array_?ArrayQ, vars_, maxOrder_Integer?NonNegative] :=
     Thread[Unevaluated[MultiSeries[array, vars, maxOrder]], List, 1] /;
         ArrayQ[array]
 
-(**
-MultiSeries[0, vars_, maxOrder_Integer?NonNegative] :=
-    Module[{symbols, exponents},
-        {symbols, exponents} = processVars[vars];
-        MultiSeriesData[symbols, exponents, \[Delta], O[\[Delta]]^(maxOrder+1)]
-    ];
-
-(* Create multivariate Taylor series about origin from multivariate polynomial,
-   by adding unspecified higher order terms O[{vars}^(maxOrder+1)]  *)
-MultiSeries[poly_, vars_, maxOrder_Integer?NonNegative] :=
-    Module[{symbols, exponents},
-        {symbols, exponents} = processVars[vars];
-        MultiSeriesData[
-            symbols, exponents, \[Delta], 
-            Series[poly /. Thread[symbols -> symbols*\[Delta]^(1/exponents)],
-                   {\[Delta], 0, maxOrder}]
-        ]
-    ] /; PolynomialQ[poly, Variables[vars]]
-
-(* Make series valued vector or matrix from polynomial valued vector or matrix*)
-MultiSeries[polyArray_?ArrayQ, vars_, maxOrder_Integer?NonNegative] :=
-    Thread[Unevaluated[MultiSeries[polyArray, vars, maxOrder]], List, 1] /;
-        ArrayQ[polyArray, _, PolynomialQ[#, Variables[vars]]&]
-
-(* Approximate non-polynomial field locally to the origin with Taylor series. *)
-MultiSeries[field_, vars_, maxOrder_Integer?NonNegative] :=
-    Module[{symbols, exponents, polyField},
-        {symbols, exponents} = processVars[vars];
-        (* mth order coefficient tensor, H[1]=Jacobian, H[2]=Hessian etc: *)
-        H[m_] := D[field, {symbols, m}] /. Thread[symbols->0];
-        (* mth order terms: *)
-        terms[m_] := Expand[1/Factorial[m] Fold[Dot, H[m], Table[symbols,{m}]]];
-        polyField = Sum[terms[m], {m, 0, maxOrder}];
-        MultiSeries[polyField, vars, maxOrder]
-    ]
-**)
-
 (* test whether an expression is a MultiSeries or MultiSeriesField *)
 MultiSeriesQ[expr_] := Head[expr]===MultiSeriesData;
 MultiSeriesFieldQ[expr_] := VectorQ[expr, MultiSeriesQ];
