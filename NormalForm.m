@@ -959,6 +959,9 @@ TransformNoisyHopf[rhs_?VectorQ,
                 MultiSeries[rhs /. Thread[vars->u], asympScaling, maxOrder]
             ];
         (* TODO make versions of ToPolar and ToCartesian for series fields *)
+        dPrint["transformed stochastic system, cartesian:"];
+        dPrint[OverDot/@u//MatrixForm, " = ",
+               transformedCartesian // Arrange // NN // MatrixForm];
         fullPolar = ToPolar[Normal[transformedCartesian], u, polarvars];
         truncatedPolar = truncatePolar[fullPolar, nDpolarScaling, maxOrder];
         dPrint["transformed stochastic system, polar:"];
