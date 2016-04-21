@@ -934,10 +934,11 @@ TransformNoisyHopf[rhs_?VectorQ,
         (* Utility functions to rearrange expressions for easy to read output.
            TODO implement in a more systematic way. *)
         Arrange[expr_] := 
-            Collect[expr, Thread[\[Xi] \[Sigma]]~Join~{new\[Xi]1, new\[Xi]2}];
+            Collect[Normal[expr],
+                    Thread[\[Xi] \[Sigma]]~Join~{new\[Xi]1, new\[Xi]2}];
 
         ArrangePolar[expr_] := 
-            Collect[TrigReduce[expr],
+            Collect[TrigReduce[Normal[expr]],
                     Thread[\[Xi] \[Sigma]] ~Join~ {new\[Xi]1, new\[Xi]2} ~Join~
                     {Cos[\[Theta]], Sin[\[Theta]]} ~Join~ 
                     {Cos[2\[Theta]],Sin[2\[Theta]]} ~Join~
