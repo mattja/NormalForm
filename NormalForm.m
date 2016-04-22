@@ -3,7 +3,7 @@
 (* :Title: NormalForm *)
 
 (* :Copyright:
-    Copyright 2015 Matthew J. Aburn
+    Copyright 2015-2016 Matthew J. Aburn
     This program is free software: you can redistribute it and/or modify 
     it under the terms of the GNU General Public License as published by 
     the Free Software Foundation, either version 3 of the License, or 
@@ -78,6 +78,17 @@ BalanceMatrix::usage =
  ill-conditioned matrix A, allowing eigenvalues and eigenvectors to be\
  computed more precisely from matrix B. Ref: Parlett and Reinsch (1969)";
 
+Arrange::usage =
+"Arrange[expr, subexpressions] partly factorizes the expression by collecting
+ any subexpressions that are listed. The purpose of this function is to allow
+ printing the expression in a more readable form.";
+
+ArrangePolar::usage =
+"ArrangePolar[expr, subexpressions, angleVars] partly factorizes the expression
+ by collecting subexpressions, as well as collecting Sin(n x), Cos(n x) for any
+ symbols x in the list angleVars, for integers n = 1..6. The purpose of this
+ function is to allow printing the expression in a more readable form.";
+
 
 Begin["`Private`"]
 
@@ -96,6 +107,18 @@ dPrint[x___] := Null /; !verbose
 exactOutput = True;
 NN[x_] := Identity[x] /; exactOutput
 NN[x_] := N[x, 4] /; !exactOutput
+
+(* Utility functions to collect expressions for easy to read output. *)
+Arrange[expr_, syms_List] := Collect[Normal[expr], Flatten[syms, 1]];
+
+(* Also collect trig expressions such as Sin[n\[Theta]], for all n=1..m. *)
+ArrangePolar[expr_, syms_List, angleVars_List] :=
+    Module[{trigExprs, m=6},
+        trigExprs = Flatten@Outer[Map[#1, {#2 #3}]&, 
+                                  {Sin, Cos}, Range[m], angleVars];
+        Collect[TrigReduce[Normal[expr]],
+                Flatten[syms, 1] ~Join~ trigExprs]
+    ];
 
 (* ShowIt function to aid debugging, suggested by Leonid Shiffrin *) 
 SetAttributes[ShowIt, HoldAll];
@@ -759,7 +782,7 @@ NormalFormTransformation[rhs_?VectorQ,
                          maxOrder_Integer?Positive,
                          OptionsPattern[]] :=
     Module[{n, u, bifParams, asympScaling, savedContext, RHS, RHSseriesfield,
-            RHSdeterministic, cylvars, origpolarsys, S, U, identityTrans,
+            RHSdeterministic, cylVars, origpolarsys, S, U, identityTrans,
             fieldAtBifPoint, newField, asympField, newrhs, trans},
         verbose = OptionValue[Verbose];
         bifParams = OptionValue[BifurcationParameters];
@@ -790,9 +813,9 @@ NormalFormTransformation[rhs_?VectorQ,
         dPrint["Series approximation to the original deterministic system:\n",
               RHSseriesfield // NN // MatrixForm];
         (* Print original system in cylindrical coordinates: *)
-        cylvars = {r, \[Theta]}~Join~u[[3;;]];
+        cylVars = {r, \[Theta]}~Join~u[[3;;]];
         origpolarsys =
-            ToPolar[RHSseriesfield//Normal, u, cylvars[[1;;2]]] // Simplify;
+            ToPolar[RHSseriesfield//Normal, u, cylVars[[1;;2]]] // Simplify;
         (* Find transformation based on system exactly at bifurcation point: *)
         fieldAtBifPoint = RHSseriesfield /. Thread[bifParams->0];
         (* Before starting, cumulative transformation is the Identity: u->u *)
@@ -809,6 +832,7 @@ NormalFormTransformation[rhs_?VectorQ,
         {newrhs, trans} /. Thread[u->newvars]
     ]
 
+
 (* Take truncated power series field expression in cylindrical coordinates that
    may involve integer powers >= -2 and remove any terms of order greater than 
    O[polarScaling]^maxOrder *)
@@ -820,6 +844,7 @@ truncatePolar[field_, polarScaling_List, maxOrder_Integer?NonNegative] :=
         Table[Normal@MultiSeries[field[[i]], polarScaling, maxOrders[[i]]], 
               {i, 1, n}] // Simplify // Chop
     ];
+
 
 Options[TransformNoisyHopf] =
     {Verbose->False,
@@ -846,10 +871,9 @@ TransformNoisyHopf[rhs_?VectorQ,
                    {new\[Xi]1_Symbol, new\[Xi]2_Symbol},
                    OptionsPattern[]] :=
     Module[{maxOrder, bifParams, n, asympScaling, deterministicScaling, A,
-            nDpolarScaling, polarScaling, \[Omega], polarvars, cylvars,
-            centerEigs, rotpolarvars, rotcylvars, deterministicRhs, newrhs,
-            trans, transformedCartesian, fullPolar, truncatedPolar,
-            weakestStableEigenvalue},
+            nDpolarScaling, polarScaling, polarVars, cylVars, centerEigs,
+            deterministicRhs, newrhs, trans, transformedCartesian,
+            fullPolar, truncatedPolar},
         verbose = OptionValue[Verbose];
         maxOrder = OptionValue[MaxOrder];
         bifParams = OptionValue[BifurcationParameters];
@@ -859,7 +883,7 @@ TransformNoisyHopf[rhs_?VectorQ,
             u = Table[Symbol["u"<>ToString[i]], {i,n}];
         ];
 
-        (* which asymptotic limit to use for output when truncating series: *)
+        (* which asymptotic limit to use when truncating series: *)
         (* e.g. {u1, ..., un, eps^(1/2), sigma^(1/2)} *)
         asympScaling = OptionValue[AsymptoticScaling];
         asympScaling = Select[vars, FreeQ[asympScaling, #]&]~Join~asympScaling;
@@ -880,10 +904,8 @@ TransformNoisyHopf[rhs_?VectorQ,
 
         $Assumptions = $Assumptions && And@@Thread[\[Sigma]>=0] && r>=0 && 
             \[Theta]\[Element]Reals && \[Phi]\[Element]Reals;
-        polarvars = {r, \[Theta]}; 
-        cylvars = polarvars~Join~u[[3;;]];
-        rotpolarvars = {r, \[Phi]}; (* variables for rotating frame *)
-        rotcylvars = rotpolarvars~Join~u[[3;;]];
+        polarVars = {r, \[Theta]}; 
+        cylVars = polarVars~Join~u[[3;;]];
 
         deterministicRhs = rhs /. Thread[\[Xi]->0];
         {newrhs, trans} = 
@@ -902,23 +924,14 @@ TransformNoisyHopf[rhs_?VectorQ,
             Abort[]; 
         ];
 
-        (* Utility functions to rearrange expressions for easy to read output.
-           TODO implement in a more systematic way. *)
-        Arrange[expr_] := 
-            Collect[Normal[expr],
-                    Thread[\[Xi] \[Sigma]]~Join~{new\[Xi]1, new\[Xi]2}];
-
-        ArrangePolar[expr_] := 
-            Collect[TrigReduce[Normal[expr]],
-                    Thread[\[Xi] \[Sigma]] ~Join~ {new\[Xi]1, new\[Xi]2} ~Join~
-                    {Cos[\[Theta]], Sin[\[Theta]]} ~Join~ 
-                    {Cos[2\[Theta]],Sin[2\[Theta]]} ~Join~
-                    {Cos[\[Phi]],Sin[\[Phi]],Cos[2\[Phi]],Sin[2\[Phi]]}];
+        (* Utility functions to collect terms for easy-to-read output: *)
+        Ar[expr_] := Arrange[expr, Thread[\[Xi] \[Sigma]]];
+        ArPolar[expr_] := ArrangePolar[expr, Thread[\[Xi] \[Sigma]],{\[Theta]}];
 
         dPrint["\n-----------------------------------------------------------"];
         dPrint["Transformed deterministic system, polar coordinates: ",
-               OverDot /@ cylvars // MatrixForm, " = ", 
-               ToPolar[newrhs, u, polarvars] //
+               OverDot /@ cylVars // MatrixForm, " = ", 
+               ToPolar[newrhs, u, polarVars] //
                    NN // TrigReduce // Simplify // Chop // MatrixForm, " + ", 
                Superscript["O[r]", maxOrder+1]];
 
@@ -933,14 +946,64 @@ TransformNoisyHopf[rhs_?VectorQ,
         (* TODO make versions of ToPolar and ToCartesian for series fields *)
         dPrint["transformed stochastic system, cartesian:"];
         dPrint[OverDot/@u//MatrixForm, " = ",
-               transformedCartesian // Arrange // NN // MatrixForm];
-        fullPolar = ToPolar[Normal[transformedCartesian], u, polarvars];
+               transformedCartesian // Ar // NN // MatrixForm];
+        fullPolar = ToPolar[Normal[transformedCartesian], u, polarVars];
         truncatedPolar = truncatePolar[fullPolar, nDpolarScaling, maxOrder];
         dPrint["transformed stochastic system, polar:"];
-        dPrint[OverDot/@cylvars//MatrixForm, " = ",
-               truncatedPolar // ArrangePolar // NN // Simplify // MatrixForm];
+        dPrint[OverDot/@cylVars//MatrixForm, " = ",
+               truncatedPolar // ArPolar // NN // Simplify // MatrixForm];
+
+        (* Use an averaging approximation of the stable variables to reduce
+           the system to two dimensions: *)
+        reducedPolar =
+            NoisyHopfReduce2D[truncatedPolar, cylVars, \[Sigma], \[Xi],
+                              BifurcationParameters->bifParams, 
+                              MaxOrder->maxOrder];
+        dPrint["Two-dimensional reduced system: "];
+        dPrint[OverDot /@ polarVars // MatrixForm, " = ",
+               reducedPolar // ArPolar // NN // MatrixForm];
+
+        (* Use averaging of the diffusion process around the cycle to find a
+           circularly symmetrical approximation for longer time scales. *)
+        averagedPolar =
+            AverageCycle[reducedPolar, polarVars, polarScaling,
+                         \[Sigma], \[Xi], {new\[Xi]1, new\[Xi]2},
+                         BifurcationParameters->bifParams, MaxOrder->maxOrder];
+
+        (* rescale r so that the coefficient of the r^3 term is -1 *)
+        result = HopfRescaleRadius[averagedPolar, polarVars]
+    ]
+
+
+Options[NoisyHopfReduce2D] =
+    {BifurcationParameters->{Global`\[Epsilon]},
+     MaxOrder->3};
+
+(* Reduce the noisy Hopf normal form system to two dimensions r and \[Theta]
+   by approximating the stochastic coupling terms with zero.
+   It is assumed the deterministic terms are already in Hopf normal form and
+   are expressed in cylindrical coordinates {r, \[Theta], x3, ...}.
+        
+   TODO: currently assumes the frequency of stable eigenvalues are not close
+   to resonance with the Hopf frequency. Should test for this explicitly.
+
+   TODO: also assumes there is a non-zero additive noise term to which these
+   zero-mean coupling terms are added. Should test this explicitly. *)
+NoisyHopfReduce2D[rhs_?VectorQ,
+                  cylVars_?SymbolListQ,
+                  \[Sigma]_?SymbolListQ,
+                  \[Xi]_?SymbolListQ,
+                  OptionsPattern[]] :=
+    Module[{maxOrder, bifParams, polarVars, uVars, A, reStableEigenvals,
+            weakestStableEigenvalue, result},
+        maxOrder = OptionValue[MaxOrder];
+        bifParams = OptionValue[BifurcationParameters];
+        polarVars = cylVars[[1;;2]]; (* r and \[Theta] *)
+        uVars = cylVars[[3;;]]; (* the stable variables u3, u4, ... *)
         (* Check criterion for approximate decoupling of the center variables *)
-        weakestStableEigenvalue = Max[Diagonal[A][[3;;]]];
+        A = D[rhs[[3;;]], {uVars}] /.Thread[cylVars->0] /.Thread[bifParams->0];
+        reStableEigenvals = Diagonal[A];
+        weakestStableEigenvalue = Max[reStableEigenvals];
         If[Re[weakestStableEigenvalue]>0,
             Print["Error. There is an unstable eigenspace. ",
                   "System will not de-couple."];
@@ -949,20 +1012,51 @@ TransformNoisyHopf[rhs_?VectorQ,
         dPrint["Assuming now that \[Sigma]/",
                NN[(-Re[weakestStableEigenvalue])^(3/2)], " << 1  so that the ",
                "oscillations approximately decouple from the stable variables"];
-        reducedPolar = truncatedPolar[[1;;2]] /. Thread[u->0] // Simplify;
-        dPrint["Two-dimensional reduced system: "];
-        dPrint[OverDot /@ polarvars // MatrixForm, " = ",
-               reducedPolar // ArrangePolar // NN // MatrixForm];
+        (* Approximate by omitting the stochastic coupling terms *)
+        result = rhs[[1;;2]] /. Thread[uVars->0] // Simplify
+    ]
 
-        (* Change to rotating frame *)
-        (* Angular frequency at Hopf point: *)
-        \[Omega] = (reducedPolar[[2]] /.
+
+Options[AverageCycle] =
+    {BifurcationParameters->{Global`\[Epsilon]},
+     MaxOrder->3};
+
+(* Remove angle dependency from a 2D polar SDE system by averaging around the
+   cycle. The averaging is done on the corresponding Fokker Planck equation
+   in a rotating frame, then a choice of SDE is made that corresponds to the
+   averaged system. 
+   
+   Note: this approximation will destroy fidelity of system behaviour for
+   phenomena that occur on a shorter time scale than one period. The benefit
+   is a much simpler system. *)
+AverageCycle[rhs_?VectorQ,
+             polarVars_?SymbolListQ,
+             polarScaling_List,
+             \[Sigma]_?SymbolListQ,
+             \[Xi]_?SymbolListQ,
+             {new\[Xi]1_Symbol, new\[Xi]2_Symbol},
+             OptionsPattern[]] :=
+    Module[{maxOrder, bifParams, r, \[Omega], rotPolar, stratonovichRHS,
+            stratonovichDrift, noiseTerms, G, stratToIto, itoDrift, itoRHS,
+            diffusion, diffusionAv, driftAv, Gav, noiseTermsAv, itoToStrat,
+            stratonovichDriftAv, avPolarSys},
+        maxOrder = OptionValue[MaxOrder];
+        bifParams = OptionValue[BifurcationParameters];
+        r = polarVars[[1]];
+
+        (* Utility functions to collect terms for easy-to-read output: *)
+        Ar[expr_] := Arrange[expr, Thread[\[Xi] \[Sigma]]];
+        ArPolar[expr_] := ArrangePolar[expr, Thread[\[Xi] \[Sigma]], {\[Phi]}];
+
+        (* Find angular frequency at Hopf point: *)
+        \[Omega] = (rhs[[2]] /.
              Thread[Join[u,\[Xi],bifParams]->0] // Expand) /. r->0 // Simplify;
         dPrint["\[Omega] == ", \[Omega]];
-        rotPolar = reducedPolar - {0,\[Omega]} /. \[Theta]->\[Phi]+\[Omega] t;
+        (* Change to rotating frame:*)
+        rotPolar = rhs - {0,\[Omega]} /. \[Theta]->\[Phi]+\[Omega] t;
         dPrint["Reduced system in rotating frame  \[Phi]=\[Theta]-\[Omega]t:"];
         dPrint[OverDot/@{r,\[Phi]} // MatrixForm, " = ",
-               rotPolar//ArrangePolar//NN//MatrixForm];
+               rotPolar // ArPolar // NN // MatrixForm];
 
         (* Convert the above result to Ito form *)
         stratonovichRHS = rotPolar;
@@ -973,15 +1067,14 @@ TransformNoisyHopf[rhs_?VectorQ,
         G = D[noiseTerms, {\[Xi]}];
         dPrint["Matrix of noise coefficients G = ", G//NN//MatrixForm]; 
         (* transpose is needed to apply trace to correct ranks of the tensor: *)
-        stratToIto = 
-            1/2 Tr[Transpose[D[G,{{r,\[Phi]}}].G,{3,1,2}],Plus,2];
+        stratToIto = 1/2 Tr[Transpose[D[G,{{r,\[Phi]}}].G,{3,1,2}],Plus,2];
         dPrint["Stratonovich to Ito drift adjustment: ",
                stratToIto//NN//MatrixForm];
         itoDrift = stratonovichDrift + stratToIto // Expand // Chop;
         itoRHS = itoDrift + noiseTerms;
         dPrint["Ito form:"];
         dPrint[OverDot /@ {r, \[Phi]} // MatrixForm, " = ",
-               itoRHS // ArrangePolar // NN // MatrixForm];
+               itoRHS // ArPolar // NN // MatrixForm];
         dPrint["----------Removing insignificant terms... ----------"];
         dPrint[OverDot /@ {r, \[Phi]} // MatrixForm, " = ",
                truncatePolar[itoRHS, polarScaling, maxOrder]//NN//MatrixForm];
@@ -1005,18 +1098,18 @@ TransformNoisyHopf[rhs_?VectorQ,
         driftAv = truncatePolar[driftAv, polarScaling, maxOrder];
         dPrint["Averaged Fokker-Planck drift: ",driftAv//MatrixForm];
          
-        (* Convert back from Fokker-Planck equation to Ito SDE *)
+        (* Choose an Ito SDE corresponding to the Fokker-Planck equation: *)
         Gav = Transpose[CholeskyDecomposition[diffusionAv]] // Simplify // Chop;
         noiseTermsAv = Gav.{new\[Xi]1, new\[Xi]2};
         dPrint["Averaged normal form system in Ito form: "];
         dPrint[OverDot/@{r,\[Phi]}//MatrixForm, " = ",
-               driftAv+noiseTermsAv // Arrange//NN//MatrixForm];
+               driftAv+noiseTermsAv // Ar // NN // MatrixForm];
 
         dPrint["----------Removing insignificant terms... ----------"];
         noiseTermsAv = truncatePolar[noiseTermsAv, polarScaling, maxOrder];
         dPrint["Averaged normal form system in Ito form: "];
         dPrint[OverDot/@{r,\[Phi]}// MatrixForm, " = ",
-               driftAv+noiseTermsAv//Arrange//NN//MatrixForm];
+               driftAv+noiseTermsAv // Ar // NN // MatrixForm];
 
         (* Convert SDE to Stratonovich form *)
         (* transpose is needed to apply trace to correct ranks of the tensor: *)
@@ -1032,22 +1125,32 @@ TransformNoisyHopf[rhs_?VectorQ,
         avPolarSys = stratonovichDriftAv + noiseTermsAv;
         dPrint["Averaged normal form system in Stratonovich form: "];
         dPrint[OverDot/@{r,\[Phi]}//MatrixForm, " = ",
-               avPolarSys//Arrange//NN//MatrixForm];
+               avPolarSys // Ar // NN // MatrixForm];
         dPrint["----------Removing insignificant terms... ----------"];
         avPolarSys = truncatePolar[avPolarSys, polarScaling, maxOrder];
         dPrint["Averaged normal form system in Stratonovich form: "];
         dPrint[OverDot/@{r,\[Phi]}//MatrixForm, " = ",
-               avPolarSys//Arrange//NN//MatrixForm];
+               avPolarSys // Ar // NN // MatrixForm];
 
         (* change back to non-rotating frame: *)
-        result = avPolarSys + {0, \[Omega]};
+        result = avPolarSys + {0, \[Omega]}
+    ]
 
-        (* rescale r so that the coefficient of the r^3 term is -1 *)
-        coeff = SeriesCoefficient[result[[1]], {r, 0, 3}];
-        result = result /. r -> r/Sqrt[-coeff];
+
+(* Rescale r so that the coefficient of the r^3 term is -1
+   Assumes the system is expressed in polar or cylindrical coordinates *)
+HopfRescaleRadius[rhs_?VectorQ, cylVars_?SymbolListQ] :=
+    Module[{r, coeff, result},
+        r = cylVars[[1]];
+        coeff = SeriesCoefficient[rhs[[1]], {r, 0, 3}];
+        If[PossibleZeroQ[coeff],
+            Print["Handling degenerate Hopf bifurcation not yet implemented."];
+            Abort[];
+        ];
+        (* TODO: for degenerate Hopf, rescale so coefficient of r^5 is -1 *)
+        result = rhs /. r -> r/Sqrt[-coeff];
         result[[1]] = result[[1]] * Sqrt[-coeff];
-
-        result // Simplify // Arrange
+        result // Simplify
     ]
 
 
