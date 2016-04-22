@@ -97,6 +97,14 @@ exactOutput = True;
 NN[x_] := Identity[x] /; exactOutput
 NN[x_] := N[x, 4] /; !exactOutput
 
+(* ShowIt function to aid debugging, suggested by Leonid Shiffrin *) 
+SetAttributes[ShowIt, HoldAll];
+ShowIt[expr_] :=
+    Module[{y},
+        Print[ToString[Unevaluated[expr]], " = ", y = expr]; 
+        y
+    ]
+
 (* Project vector into a subspace, given an orthogonal basis for the subspace *)
 Project[u_, orthogbasis_] := Plus@@Map[x\[Function]Projection[u,x],orthogbasis]
 
