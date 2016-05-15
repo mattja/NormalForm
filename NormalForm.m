@@ -79,14 +79,14 @@ BalanceMatrix::usage =
  computed more precisely from matrix B. Ref: Parlett and Reinsch (1969)";
 
 Arrange::usage =
-"Arrange[expr, subexpressions] partly factorizes the expression by collecting
- any subexpressions that are listed. The purpose of this function is to allow
+"Arrange[expr, subexpressions] partly factorizes the expression by collecting\
+ any subexpressions that are listed. The purpose of this function is to allow\
  printing the expression in a more readable form.";
 
 ArrangePolar::usage =
-"ArrangePolar[expr, subexpressions, angleVars] partly factorizes the expression
- by collecting subexpressions, as well as collecting Sin(n x), Cos(n x) for any
- symbols x in the list angleVars, for integers n = 1..6. The purpose of this
+"ArrangePolar[expr, subexpressions, angleVars] partly factorizes the expression\
+ by collecting subexpressions, as well as collecting Sin(n x), Cos(n x) for any\
+ symbols x in the list angleVars, for integers n = 1..6. The purpose of this\
  function is to allow printing the expression in a more readable form.";
 
 
