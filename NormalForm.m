@@ -1093,6 +1093,11 @@ AverageCycle[rhs_?VectorQ,
         diffusion = G.Transpose[G] // Expand // Chop;
         dPrint["Fokker-Planck diffusion matrix D = ",diffusion//MatrixForm];
         dPrint["Fokker-Planck drift: ",itoDrift//MatrixForm];
+        dPrint["----------Removing insignificant terms... ----------"];
+        diffusionT = Normal@MultiSeries[diffusion, polarScaling, maxOrder*2];
+        driftT = truncatePolar[itoDrift, polarScaling, maxOrder];
+        dPrint["Fokker-Planck diffusion matrix D = ",diffusionT//MatrixForm];
+        dPrint["Fokker-Planck drift: ",driftT//MatrixForm];
         (* TODO might need a bit of validation before integrating *)
         diffusionAv = Integrate[diffusion,{\[Phi],-\[Pi],\[Pi]}]/(2\[Pi]) //
             FullSimplify // Chop;
