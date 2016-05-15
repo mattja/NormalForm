@@ -612,6 +612,8 @@ innerProductAlgorithm1z[rm_List, LL_, m_, u_] :=
         (* As our chosen complement of Image(LL), use Kernel(LLstar)  *)
         dPrint["Finding basis for kernel of Lstar..."];
         kernel = Orthogonalize[NullSpace[LLstar]];
+        (**
+        dPrint["Checking complementary..."];
         (* verify that kernel(LLstar) is a complement to image(LL): *) 
         If[Length[image]+Length[kernel]==basissize && 
                 MatrixRank[Join[image,kernel]]==basissize,
@@ -620,6 +622,7 @@ innerProductAlgorithm1z[rm_List, LL_, m_, u_] :=
             dPrint["Failed. Image(LL) and Kernel(LLstar) not complementary."];
             Abort[];
         ];
+        **)
         dPrint["Finding basis for subspace orthogonal to Image(L)..."];
         orthogToIm =
             Orthogonalize[kernel-Map[Project[#,image]&,kernel]] //
