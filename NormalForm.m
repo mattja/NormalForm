@@ -951,19 +951,24 @@ TransformNoisyHopf[rhs_?VectorQ,
         dPrint["transformed stochastic system, cartesian:"];
         dPrint[OverDot/@u//MatrixForm, " = ",
                transformedCartesian // Ar // NN // MatrixForm];
-        fullPolar = ToPolar[Normal[transformedCartesian], u, polarVars];
-        truncatedPolar = truncatePolar[fullPolar, nDpolarScaling, maxOrder];
+        transformedPolar = truncatePolar[ToPolar[Normal[transformedCartesian],
+                u, polarVars], nDpolarScaling, maxOrder];
         dPrint["transformed stochastic system, polar:"];
         dPrint[OverDot/@cylVars//MatrixForm, " = ",
-               truncatedPolar // ArPolar // NN // Simplify // MatrixForm];
+               transformedPolar // ArPolar // NN // Simplify // MatrixForm];
 
         (* Use an averaging approximation of the stable variables to reduce
            the system to two dimensions: *)
-        reducedPolar =
-            NoisyHopfReduce2D[truncatedPolar, cylVars, \[Sigma], \[Xi],
+        reducedCartesian =
+            NoisyHopfReduce2D[Normal[transformedCartesian], u, \[Sigma], \[Xi],
                               BifurcationParameters->bifParams, 
                               MaxOrder->maxOrder];
-        dPrint["Two-dimensional reduced system: "];
+        dPrint["Two-dimensional reduced system, cartesian: "];
+        dPrint[OverDot/@u[[1;;2]]//MatrixForm, " = ",
+               reducedCartesian // Ar // NN // MatrixForm];
+        reducedPolar = truncatePolar[ToPolar[Normal[reducedCartesian],
+                u, polarVars], nDpolarScaling, maxOrder];
+        dPrint["Two-dimensional reduced system, polar: "];
         dPrint[OverDot /@ polarVars // MatrixForm, " = ",
                reducedPolar // ArPolar // NN // MatrixForm];
 
@@ -983,10 +988,11 @@ Options[NoisyHopfReduce2D] =
     {BifurcationParameters->{Global`\[Epsilon]},
      MaxOrder->3};
 
-(* Reduce the noisy Hopf normal form system to two dimensions r and \[Theta]
-   by approximating the stochastic coupling terms with zero.
-   It is assumed the deterministic terms are already in Hopf normal form and
-   are expressed in cylindrical coordinates {r, \[Theta], x3, ...}.
+(* Reduce the noisy Hopf normal form system to two dimensions (the center 
+   eigenspace variables u1 and u2) by approximating the stochastic coupling 
+   terms by zero. It is assumed the deterministic terms are already in Hopf
+   normal form and are expressed in cartesian coordinates {u1, u2, ...} with
+   the center eigenspace variables listed first.
         
    TODO: currently assumes the frequency of stable eigenvalues are not close
    to resonance with the Hopf frequency. Should test for this explicitly.
@@ -994,18 +1000,18 @@ Options[NoisyHopfReduce2D] =
    TODO: also assumes there is a non-zero additive noise term to which these
    zero-mean coupling terms are added. Should test this explicitly. *)
 NoisyHopfReduce2D[rhs_?VectorQ,
-                  cylVars_?SymbolListQ,
+                  u_?SymbolListQ,
                   \[Sigma]_?SymbolListQ,
                   \[Xi]_?SymbolListQ,
                   OptionsPattern[]] :=
-    Module[{maxOrder, bifParams, polarVars, uVars, A, reStableEigenvals,
+    Module[{maxOrder, bifParams, cVars, sVars, A, reStableEigenvals,
             weakestStableEigenvalue, result},
         maxOrder = OptionValue[MaxOrder];
         bifParams = OptionValue[BifurcationParameters];
-        polarVars = cylVars[[1;;2]]; (* r and \[Theta] *)
-        uVars = cylVars[[3;;]]; (* the stable variables u3, u4, ... *)
+        cVars = u[[1;;2]]; (* center eigenspace variables *)
+        sVars = u[[3;;]]; (* stable eigenspace variables  *)
         (* Check criterion for approximate decoupling of the center variables *)
-        A = D[rhs[[3;;]], {uVars}] /.Thread[cylVars->0] /.Thread[bifParams->0];
+        A = D[rhs[[3;;]], {sVars}] /. Thread[u->0] /.Thread[bifParams->0];
         reStableEigenvals = Diagonal[A];
         weakestStableEigenvalue = Max[reStableEigenvals];
         If[Re[weakestStableEigenvalue]>0,
@@ -1013,11 +1019,11 @@ NoisyHopfReduce2D[rhs_?VectorQ,
                   "System will not de-couple."];
             Abort[];
         ];
-        dPrint["Assuming now that \[Sigma]/",
+        dPrint["Assuming now that \[Sigma]^2/",
                NN[(-Re[weakestStableEigenvalue])^(3/2)], " << 1  so that the ",
                "oscillations approximately decouple from the stable variables"];
         (* Approximate by omitting the stochastic coupling terms *)
-        result = rhs[[1;;2]] /. Thread[uVars->0] // Simplify
+        result = rhs[[1;;2]] /. Thread[sVars->0] // Simplify
     ]
 
 
