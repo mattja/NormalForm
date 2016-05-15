@@ -704,7 +704,8 @@ simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ},
                    m, " terms."];
             sm = Table[0, {basissize}];
         ,
-            If[Count[Eigenvectors[LL], Table[0, {basissize}]] == 0,
+            If[AllTrue[Eigenvectors[LL], !AllTrue[#,PossibleZeroQ]&],
+                (* then there are no zero vectors in the list *)
                 dPrint["Representation of L is semisimple. ",
                        "Choosing semisimple style."];
                 sm = semisimpleAlgorithm1z[rm, LL, m, u];
