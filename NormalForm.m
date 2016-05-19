@@ -291,6 +291,8 @@ ToCartesian[field_?VectorQ, {r_Symbol, \[Theta]_Symbol}, u_?SymbolListQ] :=
 
 (* declare these symbols in NormalForm`Private` module scope for internal use *)
 \[Delta]; r; \[Theta]; \[Phi];
+$Assumptions = $Assumptions && r>=0 && \[Theta]\[Element]Reals &&
+               \[Phi]\[Element]Reals;
 
 (* normalize the list of symbol powers given in a MultiSeries expression *)
 processVars[vars_] :=
@@ -903,8 +905,8 @@ TransformNoisyHopf[rhs_?VectorQ,
         polarScaling =
             {r}~Join~Select[asympScaling, And@@Through[Thread[FreeQ[u]][#]]&];
 
-        $Assumptions = $Assumptions && And@@Thread[\[Sigma]>=0] && r>=0 && 
-            \[Theta]\[Element]Reals && \[Phi]\[Element]Reals;
+        $Assumptions = $Assumptions && And@@Thread[\[Sigma]>=0] && r>=0 &&
+                       And@@Map[Element[#, Reals]&, bifParams];
         polarVars = {r, \[Theta]}; 
         cylVars = polarVars~Join~u[[3;;]];
 
