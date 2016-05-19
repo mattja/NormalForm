@@ -650,15 +650,16 @@ InvSum[x_, maxOrder_Integer?Positive] :=
 (* Apply the near-identity coordinate transformation  u -> U(y)
    to transform the contravariant field R(u)  *)
 TransformContravariant[U_?MultiSeriesFieldQ, R_?MultiSeriesFieldQ] :=
-    Module[{u, maxOrder, n, T, DT, factor1, factor2},
+    Module[{u, asympScaling, maxOrder, n, T, DT, factor1, factor2},
         u = U[[1]][[1]];
+        asympScaling = u^U[[1]][[2]];
         maxOrder = R[[1]][[4]][[5]]/R[[1]][[4]][[6]] - 1;
         n = Length[u];
         T = Normal[U] - u;
         DT = D[T, {u, 1}];
         factor1 = InvSum[x, maxOrder] /.
             {1->IdentityMatrix[n], x->DT, Power->MatrixPower} //
-            MultiSeries[#, u, maxOrder]&;
+            MultiSeries[#, asympScaling, maxOrder]&;
         factor2 = SubstituteField[R, U];
         factor1.factor2
     ]
@@ -671,6 +672,9 @@ TransformContravariant[U_?MultiSeriesFieldQ, R_?MultiSeriesFieldQ] :=
          U is cumulative transformation used so far (from original system to R).
        m: the order of terms we are currently simplifying
        u: list of phase space variables, e.g. {u1, u2, u3}
+       asympScaling: relative scaling of variables and bifurcation parameters in
+         the asymptotic limit. e.g. {u1, u2, ..., un, Sqrt[Global`\[Epsilon]]}
+         means O(\[Epsilon]) == O(u_i^2), which suits a Hopf bifurcation.
        maxOrder: neglect terms of higher than this order
 
    Assumption: 
@@ -684,6 +688,7 @@ TransformContravariant[U_?MultiSeriesFieldQ, R_?MultiSeriesFieldQ] :=
 simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ}, 
               m_Integer?(#>=2&),
               u_?SymbolListQ, 
+              asympScaling_List,
               maxOrder_Integer?(#>=2&)] := 
     Module[{n, basis, basissize, dualbasis, rm, A, sm, tm, LL, image, Sm, 
             factor1, factor2, transformedSys, Tm, DTm, Um, S, Ucum, newrhs},
@@ -729,7 +734,7 @@ simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ},
         (* nonlinear part of incremental transformation (expression in u): *)
         Tm = tm.basis // Expand; 
         (* incremental transformation (MultiSeries in u): *)
-        Um = MultiSeries[u+Tm, u, maxOrder]; 
+        Um = MultiSeries[u+Tm, asympScaling, maxOrder];
         (* composition of all transformations so far (MultiSeries in u): *)
         Ucum = ComposeTransformations[{U, Um}] // Simplify // Chop;
         dPrint["Incremental transformation: ",
@@ -754,7 +759,7 @@ simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ},
         newrhs = OrderTerms[R, {0, m-1}] + 
                  Sm + 
                  OrderTerms[transformedSys, {m+1, maxOrder}];
-        S = MultiSeries[newrhs, u, maxOrder] // Simplify // Chop;
+        S = MultiSeries[newrhs, asympScaling, maxOrder] // Simplify // Chop;
         dPrint["New system: ", OverDot/@u//MatrixForm, " = ",
                Normal[S]//NN//MatrixForm, " + ",
                Superscript["O[|u|]", maxOrder+1]];
