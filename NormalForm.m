@@ -804,10 +804,7 @@ NormalFormTransformation[rhs_?VectorQ,
            context when generating symbols, to avoid clash with global names *)
         Block[{$Context="NormalForm`Private`"},
             u = Table[Symbol["u"<>ToString[i]], {i,n}];
-            \[Xi] = Table[Symbol["\[Xi]"<>ToString[i]],{i,n}];
-            \[Sigma] = Table[Symbol["\[Sigma]"<>ToString[i]],{i,n}];
         ];
-        $Assumptions = $Assumptions && And@@Thread[\[Sigma]>=0];
         RHS = rhs /. Thread[vars->u];
         asympScaling = asympScaling /. Thread[vars->u];
         dPrint["RHS: ", RHS//MatrixForm];
