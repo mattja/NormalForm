@@ -290,9 +290,9 @@ ToCartesian[field_?VectorQ, {r_Symbol, \[Theta]_Symbol}, u_?SymbolListQ] :=
   TODO: allow series expansion about points other than the origin *)
 
 (* declare these symbols in NormalForm`Private` module scope for internal use *)
-\[Delta]; r; \[Theta]; \[Phi];
+\[Delta]; \[Alpha]; r; \[Theta]; \[Phi];
 $Assumptions = $Assumptions && r>=0 && \[Theta]\[Element]Reals &&
-               \[Phi]\[Element]Reals;
+               \[Phi]\[Element]Reals && \[Alpha]\[Element]Reals;
 
 (* normalize the list of symbol powers given in a MultiSeries expression *)
 processVars[vars_] :=
@@ -672,9 +672,6 @@ TransformContravariant[U_?MultiSeriesFieldQ, R_?MultiSeriesFieldQ] :=
          U is cumulative transformation used so far (from original system to R).
        m: the order of terms we are currently simplifying
        u: list of phase space variables, e.g. {u1, u2, u3}
-       asympScaling: relative scaling of variables and bifurcation parameters in
-         the asymptotic limit. e.g. {u1, u2, ..., un, Sqrt[Global`\[Epsilon]]}
-         means O(\[Epsilon]) == O(u_i^2), which suits a Hopf bifurcation.
        maxOrder: neglect terms of higher than this order
 
    Assumption: 
@@ -688,7 +685,6 @@ TransformContravariant[U_?MultiSeriesFieldQ, R_?MultiSeriesFieldQ] :=
 simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ}, 
               m_Integer?(#>=2&),
               u_?SymbolListQ, 
-              asympScaling_List,
               maxOrder_Integer?(#>=2&)] := 
     Module[{n, basis, basissize, dualbasis, rm, A, sm, tm, LL, image, Sm, 
             factor1, factor2, transformedSys, Tm, DTm, Um, S, Ucum, newrhs},
@@ -734,7 +730,7 @@ simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ},
         (* nonlinear part of incremental transformation (expression in u): *)
         Tm = tm.basis // Expand; 
         (* incremental transformation (MultiSeries in u): *)
-        Um = MultiSeries[u+Tm, asympScaling, maxOrder];
+        Um = MultiSeries[u+Tm, u, maxOrder];
         (* composition of all transformations so far (MultiSeries in u): *)
         Ucum = ComposeTransformations[{U, Um}] // Simplify // Chop;
         dPrint["Incremental transformation: ",
@@ -756,10 +752,9 @@ simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ},
         (* Orders 0 to m-1 are unchanged from R, and Sm may have more 
            precision than the order m terms of transformedSys so we will take 
            orders 0 to m-1 directly from R and order m directly from Sm   *)
-        newrhs = OrderTerms[R, {0, m-1}] + 
-                 Sm + 
+        newrhs = OrderTerms[R, {0, m-1}] + Sm + 
                  OrderTerms[transformedSys, {m+1, maxOrder}];
-        S = MultiSeries[newrhs, asympScaling, maxOrder] // Simplify // Chop;
+        S = MultiSeries[newrhs, u, maxOrder] // Simplify // Chop;
         dPrint["New system: ", OverDot/@u//MatrixForm, " = ",
                Normal[S]//NN//MatrixForm, " + ",
                Superscript["O[|u|]", maxOrder+1]];
@@ -770,7 +765,8 @@ simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ},
 Options[NormalFormTransformation] =
     {Verbose->False,
      BifurcationParameters->{Global`\[Epsilon]},
-     AsymptoticScaling->{Sqrt[Global`\[Epsilon]]}};
+     AsymptoticScaling->{Sqrt[Global`\[Epsilon]]},
+     Augmented->False};
 
 (* Compute the normal form of system, to a specified order. 
     Args:
@@ -779,7 +775,7 @@ Options[NormalFormTransformation] =
               e.g. {x1, x2, x3}
         newvars: list of new variable names to use in the transformed system
               e.g. {u1, u2, u3}
-        maxOrder: compute normal form to this order
+        maxOrder: compute normal form up to terms of this order
 
     Returns:
         {newrhs, trans} where
@@ -795,18 +791,25 @@ Options[NormalFormTransformation] =
           parameters in the asymptotic limit, used when truncating power series.
           e.g. {u1, u2, u3, Sqrt[Global`\[Epsilon]]} means to assume
           O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.
+        Augmented: whether to compute the normal form of the augmented system,
+          that is with phase space extended with dimensions for the (rescaled)
+          bifurcation parameters and their equations \dot{\alpha} == 0,
+          thus finding a transformation dependent on the bifurcation parameters.
+          If False (the default) then the normal form will be found with
+          respect to the dynamical variables only.
 *)        
 NormalFormTransformation[rhs_?VectorQ, 
                          vars_?SymbolListQ, 
                          newvars_?SymbolListQ,
                          maxOrder_Integer?Positive,
                          OptionsPattern[]] :=
-    Module[{n, u, bifParams, asympScaling, savedContext, RHS, RHSseriesfield,
-            RHSdeterministic, cylVars, origpolarsys, S, U, identityTrans,
-            fieldAtBifPoint, newField, asympField, newrhs, trans},
+    Module[{n, u, ua, syms, exponents, epsscale, bifParams, asympScaling, RHS,
+            RHSseries, startSeries, S, U, identityTrans, newrhs, trans, nbif},
         verbose = OptionValue[Verbose];
         bifParams = OptionValue[BifurcationParameters];
         If[Head[bifParams]=!=List, bifParams={bifParams}];
+        nbif = Length[bifParams];
+        augmented = OptionValue[Augmented];
         asympScaling = OptionValue[AsymptoticScaling];
         asympScaling = Select[vars, FreeQ[asympScaling, #]&]~Join~asympScaling;
         dPrint["Deterministic system using asymptotic scaling ", asympScaling]; 
@@ -820,32 +823,51 @@ NormalFormTransformation[rhs_?VectorQ,
            context when generating symbols, to avoid clash with global names *)
         Block[{$Context="NormalForm`Private`"},
             u = Table[Symbol["u"<>ToString[i]], {i,n}];
+            \[Alpha] = Table[Symbol["\[Alpha]"<>ToString[i]], {i,nbif}];
         ];
         RHS = rhs /. Thread[vars->u];
-        asympScaling = asympScaling /. Thread[vars->u];
+        If[augmented,
+            (* want normal form of system augmented with bifurcation params *)
+            ua = u~Join~\[Alpha];
+            (* rescale bif params to symbols \[Alpha] of same order as u_i *) 
+            {syms, exponents} = processVars[asympScaling];
+            epsscale = Extract[exponents,
+                               Position[syms, _?(MemberQ[bifParams, #]&)]];
+            RHS = (RHS /. Thread[bifParams->\[Alpha]^(1/epsscale)]) ~Join~ {0}
+        ,
+            (* else will compute normal form with respect to variables u only *)
+            ua = u;
+        ];
         dPrint["RHS: ", RHS//MatrixForm];
         (* First approximate the system locally to origin with power series *)
-        RHSseriesfield =
-            MultiSeries[RHS, asympScaling, maxOrder] // Simplify // Chop;
+        RHSseries = MultiSeries[RHS, ua, maxOrder] // Simplify // Chop;
         dPrint["Series approximation to the original deterministic system:\n",
-              RHSseriesfield // NN // MatrixForm];
-        (* Print original system in cylindrical coordinates: *)
-        cylVars = {r, \[Theta]}~Join~u[[3;;]];
-        origpolarsys =
-            ToPolar[RHSseriesfield//Normal, u, cylVars[[1;;2]]] // Simplify;
-        (* Find transformation based on system exactly at bifurcation point: *)
-        fieldAtBifPoint = RHSseriesfield /. Thread[bifParams->0];
+              RHSseries // NN // MatrixForm];
+        If[augmented,
+            startSeries = RHSseries;
+        ,
+            (* else transform based on system exactly at bifurcation point *)
+            startSeries = RHSseries /. Thread[bifParams->0];
+        ];
         (* Before starting, cumulative transformation is the Identity: u->u *)
-        identityTrans = MultiSeries[u, u, maxOrder];
-        (* Now invoke the main algorithm. Iteratively simplify terms 
-           at each order, from 2nd order to maxOrder: *)
-        {S, U} = Fold[simplifyOrder[#1, #2, u, maxOrder]&,
-                      {fieldAtBifPoint, identityTrans},
+        identityTrans = MultiSeries[ua, ua, maxOrder];
+        (* Now invoke the main algorithm. Iteratively simplify terms at each
+           order, from 2nd order to maxOrder: *)
+        {S, U} = Fold[simplifyOrder[#1, #2, ua, maxOrder]&,
+                      {startSeries, identityTrans},
                       Range[2, maxOrder]];
-        (* now transform the system including bifurcation parameters *)
-        newField = TransformContravariant[U, RHSseriesfield] //Simplify//Chop;
-        newrhs = Normal[newField];
-        trans = Thread[vars->Normal[U]];
+        If[augmented,
+            (* then de-augment *)
+            newrhs = (Normal[S][[1;;-2]] /.
+                      Thread[\[Alpha]->bifParams^epsscale]) // Simplify // Chop;
+            trans = Thread[vars->(Normal[U][[1;;-2]] /.
+                                 Thread[\[Alpha]->bifParams^epsscale])];
+        ,
+            (* else transform original system including bifurcation parameters*)
+            newrhs = Normal[TransformContravariant[U, RHSseries]] //
+                       Simplify // Chop;
+            trans = Thread[vars->Normal[U]];
+        ];
         {newrhs, trans} /. Thread[u->newvars]
     ]
 
@@ -867,7 +889,8 @@ Options[TransformNoisyHopf] =
     {Verbose->False,
      BifurcationParameters->{Global`\[Epsilon]},
      AsymptoticScaling->{Sqrt[Global`\[Epsilon]], Global`\[Sigma]},
-     MaxOrder->3};
+     MaxOrder->3,
+     Augmented->False};
 
 (* TransformNoisyHopf[rhs, {x1,...,xn}, {\[Sigma]1,...,\[Sigma]n}, 
    {\[Xi]1,...\[Xi]n}, r, {new\[Xi]1, new\[Xi]2}] takes the stochastic 
@@ -888,6 +911,12 @@ Options[TransformNoisyHopf] =
          parameters in the asymptotic limit, used when truncating power series.
          e.g. {u1, u2, u3, Sqrt[Global`\[Epsilon]]} means to assume
          O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.
+       Augmented: whether to compute the normal form of the augmented system,
+         that is with phase space extended with dimensions for the (rescaled)
+         bifurcation parameters and their equations \dot{\alpha} == 0,
+         thus finding a transformation dependent on the bifurcation parameters.
+         If False (the default) then the normal form will be found with
+         respect to the dynamical variables only.
 
    TODO: currently it is assumed that the linear part of the system has already
    been transformed to Jordan real form, with Hopf in first two variables. 
@@ -905,6 +934,7 @@ TransformNoisyHopf[rhs_?VectorQ,
             fullPolar, truncatedPolar},
         verbose = OptionValue[Verbose];
         maxOrder = OptionValue[MaxOrder];
+        augmented = OptionValue[Augmented];
         bifParams = OptionValue[BifurcationParameters];
         If[Head[bifParams]=!=List, bifParams={bifParams}];
         n = Length[vars]; (* dimension of phase space *)
@@ -941,7 +971,8 @@ TransformNoisyHopf[rhs_?VectorQ,
             NormalFormTransformation[deterministicRhs, vars, u, maxOrder, 
                                      Verbose->verbose, 
                                      BifurcationParameters->bifParams,
-                                     AsymptoticScaling->deterministicScaling];
+                                     AsymptoticScaling->deterministicScaling,
+                                     Augmented->augmented];
 
         (* validate that we are at Hopf point in first 2 variables *)
         A = D[newrhs, {u}] /. Thread[u->0] /. Thread[bifParams->0];
