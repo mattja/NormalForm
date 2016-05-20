@@ -30,7 +30,7 @@ NormalFormTransformation::usage =
 MultiSeries::usage = 
 "MultiSeries[v, {x1,...,xn}, m] generates a multivariate power series\
  expansion for the vector field v (in variables {xi}) about the origin,\
- to order x^n";
+ to order x^m";
 
 MultiSeriesData::usage = 
 "MultiSeriesData[{x1,...,xn}, {e1,...,en}, \[Delta], seriesdata] represents a\
@@ -786,6 +786,15 @@ Options[NormalFormTransformation] =
           newrhs is the transformed system in the new variables,
           trans is the normal form transformation (expressed as a list of 
             rules x -> f(u) mapping old variables to new).
+
+    Options:
+        Verbose: whether to print all working (default False)
+        BifurcationParameters: which symbols in `rhs` should be interpreted as
+          small bifurcation parameters (default Global`\[Epsilon])
+        AsymptoticScaling: relative scaling of variables and bifurcation
+          parameters in the asymptotic limit, used when truncating power series.
+          e.g. {u1, u2, u3, Sqrt[Global`\[Epsilon]]} means to assume
+          O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.
 *)        
 NormalFormTransformation[rhs_?VectorQ, 
                          vars_?SymbolListQ, 
@@ -867,6 +876,18 @@ Options[TransformNoisyHopf] =
    Stratonovich interpretation of any multiplicative noise) and transforms it to
    a simple circular 2 dimensional Hopf normal form system (expressed in polar 
    variables {r,\[Theta]} and new Langevin noise symbols {new\[Xi]1,new\[Xi]2}).
+
+   Returns:
+       2D polar vector field representing transformed system in a standard form
+
+   Options:
+       Verbose: whether to print all working (default False)
+       BifurcationParameters: which symbols in `rhs` should be interpreted as
+         small bifurcation parameters (default Global`\[Epsilon])
+       AsymptoticScaling: relative scaling of variables and bifurcation
+         parameters in the asymptotic limit, used when truncating power series.
+         e.g. {u1, u2, u3, Sqrt[Global`\[Epsilon]]} means to assume
+         O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.
 
    TODO: currently it is assumed that the linear part of the system has already
    been transformed to Jordan real form, with Hopf in first two variables. 
