@@ -35,7 +35,7 @@ NormalFormTransformation::usage =
    O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.\
  Augmented: whether to compute the normal form of the augmented system,\
    that is with phase space extended with dimensions for the (rescaled)\
-   bifurcation parameters and their equations \dot{\alpha} == 0,\
+   bifurcation parameters and their equations \\dot{\\alpha} == 0,\
    thus finding a transformation dependent on the bifurcation parameters.\
    If False (the default) then the normal form will be found with\
    respect to the dynamical variables only.";
@@ -62,7 +62,7 @@ TransformContravariant::usage =
 
 TransformNoisyHopf::usage = 
 "TransformNoisyHopf[rhs, {x1,...,xn}, {\[Sigma]1,...,\[Sigma]n},\
- {\[Xi]1,...\[Xi]n}, r, {new\[Xi]1, new\[Xi]2}] takes the stochastic\
+ {\[Xi]1,...\[Xi]n}, {r,\[Theta]}, {new\[Xi]1,new\[Xi]2}] takes the stochastic\
  dynamical system with right hand side rhs (expressed in variables {xi},\
  small noise parameters {\[Sigma]i} and Langevin noise symbols {\[Xi]i}\
  with Stratonovich interpretation of any multiplicative noise) and\
@@ -83,10 +83,13 @@ TransformNoisyHopf::usage =
    O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.\
  Augmented: whether to compute the normal form of the augmented system,\
    that is with phase space extended with dimensions for the (rescaled)\
-   bifurcation parameters and their equations \dot{\alpha} == 0,\
+   bifurcation parameters and their equations \\dot{\\alpha} == 0,\
    thus finding a transformation dependent on the bifurcation parameters.\
    If False (the default) then the normal form will be found with\
-   respect to the dynamical variables only.";
+   respect to the dynamical variables only.\
+ Average: whether to average around the cycle. (default True)\
+ Rescale: whether to linearly rescale the radial variable to make the\
+   coefficient of the R^3 term -1. (default True)";
 
 ToPolar::usage = 
 "ToPolar[v, {x1,...,xn}, {r, \[Theta]}] transforms a n-dimensional flow,\
@@ -919,10 +922,12 @@ Options[TransformNoisyHopf] =
      BifurcationParameters->{Global`\[Epsilon]},
      AsymptoticScaling->{Sqrt[Global`\[Epsilon]], Global`\[Sigma]},
      MaxOrder->3,
-     Augmented->False};
+     Augmented->False,
+     Average->True,
+     Rescale->True};
 
 (* TransformNoisyHopf[rhs, {x1,...,xn}, {\[Sigma]1,...,\[Sigma]n}, 
-   {\[Xi]1,...\[Xi]n}, r, {new\[Xi]1, new\[Xi]2}] takes the stochastic 
+   {\[Xi]1,...\[Xi]n}, {r,\[Theta]}, {new\[Xi]1,new\[Xi]2}] takes the stochastic
    dynamical system with right hand side rhs (expressed in variables {xi}, 
    small noise parameters {\[Sigma]i} and Langevin noise symbols {\[Xi]i} with 
    Stratonovich interpretation of any multiplicative noise) and transforms it to
@@ -946,6 +951,9 @@ Options[TransformNoisyHopf] =
          thus finding a transformation dependent on the bifurcation parameters.
          If False (the default) then the normal form will be found with
          respect to the dynamical variables only.
+       Average: whether to average around the cycle. (default True)
+       Rescale: whether to linearly rescale the radial variable to make the
+         coefficient of the R^3 term -1. (default True)
 
    TODO: currently it is assumed that the linear part of the system has already
    been transformed to Jordan real form, with Hopf in first two variables. 
@@ -954,16 +962,18 @@ TransformNoisyHopf[rhs_?VectorQ,
                    vars_?SymbolListQ, 
                    \[Sigma]_?SymbolListQ,
                    \[Xi]_?SymbolListQ,
-                   r_Symbol,
+                   {r_Symbol, \[Theta]_Symbol},
                    {new\[Xi]1_Symbol, new\[Xi]2_Symbol},
                    OptionsPattern[]] :=
     Module[{maxOrder, bifParams, n, asympScaling, deterministicScaling, A,
             nDpolarScaling, polarScaling, polarVars, cylVars, centerEigs,
-            deterministicRhs, newrhs, trans, transformedCartesian,
-            fullPolar, truncatedPolar},
+            deterministicRhs, newrhs, trans, transformedCartesian, fullPolar,
+            augmented, average, rescale, result},
         verbose = OptionValue[Verbose];
         maxOrder = OptionValue[MaxOrder];
         augmented = OptionValue[Augmented];
+        average = OptionValue[Average];
+        rescale = OptionValue[Rescale];
         bifParams = OptionValue[BifurcationParameters];
         If[Head[bifParams]=!=List, bifParams={bifParams}];
         n = Length[vars]; (* dimension of phase space *)
@@ -990,7 +1000,8 @@ TransformNoisyHopf[rhs_?VectorQ,
         polarScaling =
             {r}~Join~Select[asympScaling, And@@Through[Thread[FreeQ[u]][#]]&];
 
-        $Assumptions = $Assumptions && And@@Thread[\[Sigma]>=0] && r>=0 &&
+        $Assumptions = $Assumptions && And@@Thread[\[Sigma]>=0] &&
+                       r>=0 && Element[\[Theta], Reals] &&
                        And@@Map[Element[#, Reals]&, bifParams];
         polarVars = {r, \[Theta]}; 
         cylVars = polarVars~Join~u[[3;;]];
@@ -1051,21 +1062,26 @@ TransformNoisyHopf[rhs_?VectorQ,
         dPrint["Two-dimensional reduced system, cartesian: "];
         dPrint[OverDot/@u[[1;;2]]//MatrixForm, " = ",
                reducedCartesian // Ar // NN // MatrixForm];
-        reducedPolar = truncatePolar[ToPolar[Normal[reducedCartesian],
-                u, polarVars], nDpolarScaling, maxOrder];
+        result = truncatePolar[ToPolar[Normal[reducedCartesian],
+                                       u, polarVars], nDpolarScaling, maxOrder];
         dPrint["Two-dimensional reduced system, polar: "];
         dPrint[OverDot /@ polarVars // MatrixForm, " = ",
-               reducedPolar // ArPolar // NN // MatrixForm];
+               result // ArPolar // NN // MatrixForm];
 
-        (* Use averaging of the diffusion process around the cycle to find a
-           circularly symmetrical approximation for longer time scales. *)
-        averagedPolar =
-            AverageCycle[reducedPolar, polarVars, polarScaling,
-                         \[Sigma], \[Xi], {new\[Xi]1, new\[Xi]2},
-                         BifurcationParameters->bifParams, MaxOrder->maxOrder];
+        If[average,
+            (* Use averaging of the diffusion process around the cycle to find
+               a circularly symmetrical approximation for longer time scales. *)
+            result = AverageCycle[result, polarVars, polarScaling,
+                                  \[Sigma], \[Xi], {new\[Xi]1, new\[Xi]2},
+                                  BifurcationParameters->bifParams,
+                                  MaxOrder->maxOrder];
+        ];
 
-        (* rescale r so that the coefficient of the r^3 term is -1 *)
-        result = HopfRescaleRadius[averagedPolar, polarVars]
+        If[rescale,
+            (* rescale r so that the coefficient of the r^3 term is -1 *)
+            result = HopfRescaleRadius[result, polarVars];
+        ];
+        result
     ]
 
 
@@ -1137,7 +1153,7 @@ AverageCycle[rhs_?VectorQ,
             stratonovichDriftAv, avPolarSys},
         maxOrder = OptionValue[MaxOrder];
         bifParams = OptionValue[BifurcationParameters];
-        r = polarVars[[1]];
+        {r, \[Theta]} = polarVars;
 
         (* Utility functions to collect terms for easy-to-read output: *)
         Ar[expr_] := Arrange[expr, Thread[\[Xi] \[Sigma]]];
