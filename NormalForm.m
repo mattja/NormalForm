@@ -25,7 +25,20 @@ NormalFormTransformation::usage =
  {ui}. Returns a pair {newrhs, trans} where newrhs is the transformed\
  system and trans is a smooth invertible coordinate transformation that\
  maps rhs to newrhs.\
- Options: Verbose->True will cause it to print working at each step.";
+ Options: \
+ Verbose: whether to print working at each step (default False).\
+ BifurcationParameters: which symbols in `rhs` should be interpreted as\
+   small bifurcation parameters (default Global`\[Epsilon])\
+ AsymptoticScaling: relative scaling of variables and bifurcation\
+   parameters in the asymptotic limit, used when truncating power series.\
+   e.g. {u1, u2, u3, Sqrt[Global`\[Epsilon]]} means to assume\
+   O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.\
+ Augmented: whether to compute the normal form of the augmented system,\
+   that is with phase space extended with dimensions for the (rescaled)\
+   bifurcation parameters and their equations \dot{\alpha} == 0,\
+   thus finding a transformation dependent on the bifurcation parameters.\
+   If False (the default) then the normal form will be found with\
+   respect to the dynamical variables only.";
 
 MultiSeries::usage = 
 "MultiSeries[v, {x1,...,xn}, m] generates a multivariate power series\
@@ -57,7 +70,23 @@ TransformNoisyHopf::usage =
  (expressed in new polar variables {r, \[Theta]} and new Langevin noise\
  symbols {new\[Xi]1, new\[Xi]2}).\
  Currently it is assumed that the linear part of the system has already\
- been transformed to Jordan real form, with Hopf in first two variables.";
+ been transformed to Jordan real form, with Hopf in first two variables.\
+ Returns:\
+   2D polar vector field representing transformed system in a standard form\
+ Options:\
+ Verbose: whether to print working at each step (default False)\
+ BifurcationParameters: which symbols in `rhs` should be interpreted as\
+   small bifurcation parameters (default Global`\[Epsilon])\
+ AsymptoticScaling: relative scaling of variables and bifurcation\
+   parameters in the asymptotic limit, used when truncating power series.\
+   e.g. {u1, u2, u3, Sqrt[Global`\[Epsilon]]} means to assume\
+   O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.\
+ Augmented: whether to compute the normal form of the augmented system,\
+   that is with phase space extended with dimensions for the (rescaled)\
+   bifurcation parameters and their equations \dot{\alpha} == 0,\
+   thus finding a transformation dependent on the bifurcation parameters.\
+   If False (the default) then the normal form will be found with\
+   respect to the dynamical variables only.";
 
 ToPolar::usage = 
 "ToPolar[v, {x1,...,xn}, {r, \[Theta]}] transforms a n-dimensional flow,\
