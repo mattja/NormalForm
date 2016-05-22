@@ -858,6 +858,7 @@ NormalFormTransformation[rhs_?VectorQ,
             \[Alpha] = Table[Symbol["\[Alpha]"<>ToString[i]], {i,nbif}];
         ];
         RHS = rhs /. Thread[vars->u];
+        asympScaling = asympScaling /. Thread[vars->u];
         If[augmented,
             (* want normal form of system augmented with bifurcation params *)
             ua = u~Join~\[Alpha];
@@ -865,14 +866,15 @@ NormalFormTransformation[rhs_?VectorQ,
             {syms, exponents} = processVars[asympScaling];
             epsscale = Extract[exponents,
                                Position[syms, _?(MemberQ[bifParams, #]&)]];
-            RHS = (RHS /. Thread[bifParams->\[Alpha]^(1/epsscale)]) ~Join~ {0}
+            RHS = (RHS /. Thread[bifParams->\[Alpha]^(1/epsscale)]) ~Join~ {0};
+            asympScaling = ua;
         ,
             (* else will compute normal form with respect to variables u only *)
             ua = u;
         ];
         dPrint["RHS: ", RHS//MatrixForm];
         (* First approximate the system locally to origin with power series *)
-        RHSseries = MultiSeries[RHS, ua, maxOrder] // Simplify // Chop;
+        RHSseries = MultiSeries[RHS, asympScaling, maxOrder] //Simplify//Chop;
         dPrint["Series approximation to the original deterministic system:\n",
               RHSseries // NN // MatrixForm];
         If[augmented,
