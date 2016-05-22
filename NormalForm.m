@@ -353,6 +353,16 @@ unionVars[syms1_, exps1_, syms2_, exps2_] :=
         {newsyms, newexps}
     ];
 
+unionScaling[U_?MultiSeriesFieldQ, R_?MultiSeriesFieldQ] :=
+    Module[{usyms, uexps, rsyms, rexps, newsyms, newexps},
+        usyms = U[[1]][[1]];
+        uexps = U[[1]][[2]];
+        rsyms = R[[1]][[1]];
+        rexps = R[[1]][[2]];
+        {newsyms, newexps} = unionVars[usyms, uexps, rsyms, rexps];
+        newsyms^newexps
+    ];
+
 (* Approximate a scalar expression locally to origin with multivariate series *)
 MultiSeries[expr_, vars_, maxOrder_Integer?NonNegative] :=
     Module[{symbols, exponents},
@@ -684,7 +694,7 @@ InvSum[x_, maxOrder_Integer?Positive] :=
 TransformContravariant[U_?MultiSeriesFieldQ, R_?MultiSeriesFieldQ] :=
     Module[{u, asympScaling, maxOrder, n, T, DT, factor1, factor2},
         u = U[[1]][[1]];
-        asympScaling = u^U[[1]][[2]];
+        asympScaling = unionScaling[U, R];
         maxOrder = R[[1]][[4]][[5]]/R[[1]][[4]][[6]] - 1;
         n = Length[u];
         T = Normal[U] - u;
