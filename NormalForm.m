@@ -568,7 +568,7 @@ semisimpleAlgorithm1z[rm_?VectorQ, LL_?ArrayQ, m_Integer, u_?VectorQ] :=
         dualbasis = PolyFieldDualBasis[m, u];
         basissize = Length[basis];
         (* orthonormal basis for column space of LL: *)
-        image = Select[Orthogonalize[Transpose[LL]],#!=Table[0,{basissize}]&];
+        image = Select[Orthogonalize[Transpose[LL]],!AllTrue[#,PossibleZeroQ]&];
         (* Murdock, Theorem 2.1.3: as LL is semisimple, its kernel and 
            image are linearly independent, so span the whole space *)
         (* As our chosen complement of Image(LL), use Kernel(LL).
@@ -644,7 +644,7 @@ innerProductAlgorithm1z[rm_List, LL_, m_, u_] :=
         dualbasis = PolyFieldDualBasis[m, u];
         basissize = Length[basis];
         (* orthonormal basis for column space of LL: *)
-        image = Select[Orthogonalize[Transpose[LL]],#!=Table[0,{basissize}]&];
+        image = Select[Orthogonalize[Transpose[LL]],!AllTrue[#,PossibleZeroQ]&];
         dPrint["Finding representation of Lstar operator in this basis"];
         LLstar = 
             Outer[
@@ -783,12 +783,11 @@ simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ},
         dPrint["Computing equations of motion in the new variables..."];
         transformedSys = TransformContravariant[Um, R];
         (* verify that the transformed system has order m terms equal to Sm: *)
-        If[(Max[(OrderTerms[transformedSys, m]//Factor)-Sm/.Thread[u->1]] < 
-                10^-9) === True,
+        If[Norm[(OrderTerms[transformedSys, m] - Sm) /.Thread[u->0.5]] < 10^-6,
             dPrint["Passed. Transformation gives expected order ", m," terms."];
         ,
             dPrint["Failed. Transformation does not give the expected order ",
-                   m," terms."];
+                   m, " terms. Got ", OrderTerms[transformedSys,m]//MatrixForm];
             Abort[];
         ];
         (* Orders 0 to m-1 are unchanged from R, and Sm may have more 
