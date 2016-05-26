@@ -578,8 +578,7 @@ semisimpleAlgorithm1z[rm_?VectorQ, LL_?ArrayQ, m_Integer, u_?VectorQ] :=
         kernel = NullSpace[LL];
         dPrint["Finding basis for subspace orthogonal to Image(L)..."];
         orthogToIm =
-            Orthogonalize[kernel - Map[Project[#,image]&,kernel]] //
-                Simplify;
+            Orthogonalize[kernel - Map[Project[#,image]&,kernel]] // Simplify;
         (* Want to find that vector that lies in ker LL but has the same
            projection on orthogToIm as our existing terms. That vector 
            will give the terms we retain in the transformed version *)
@@ -637,7 +636,7 @@ semisimpleAlgorithm1a[rm_?VectorQ, LL_?ArrayQ, m_Integer, u_?VectorQ] :=
 
 
 (* Explicit direct algorithm for non-semisimple systems *)
-innerProductAlgorithm1z[rm_List, LL_, m_, u_] :=
+innerProductAlgorithm1z[rm_List, LL_, A_, m_, u_] :=
     Module[{basis, dualbasis, basissize, LLstar, image, kernel, orthogToIm, 
             K, Q, sm},
         basis = PolyFieldBasis[m, u];
@@ -646,17 +645,11 @@ innerProductAlgorithm1z[rm_List, LL_, m_, u_] :=
         (* orthonormal basis for column space of LL: *)
         image = Select[Orthogonalize[Transpose[LL]],!AllTrue[#,PossibleZeroQ]&];
         dPrint["Finding representation of Lstar operator in this basis"];
-        LLstar = 
-            Outer[
-                ApplyND[#1, #2, u]&,
-                dualbasis,
-                Map[L[ConjugateTranspose[A],#]&,basis],
-                1
-            ];
+        LLstar = Outer[ApplyND[#1, #2, u]&, dualbasis,
+                       Map[L[ConjugateTranspose[A], #, u]&, basis], 1];
         (* As our chosen complement of Image(LL), use Kernel(LLstar)  *)
         dPrint["Finding basis for kernel of Lstar..."];
         kernel = Orthogonalize[NullSpace[LLstar]];
-        (**
         dPrint["Checking complementary..."];
         (* verify that kernel(LLstar) is a complement to image(LL): *) 
         If[Length[image]+Length[kernel]==basissize && 
@@ -666,11 +659,9 @@ innerProductAlgorithm1z[rm_List, LL_, m_, u_] :=
             dPrint["Failed. Image(LL) and Kernel(LLstar) not complementary."];
             Abort[];
         ];
-        **)
         dPrint["Finding basis for subspace orthogonal to Image(L)..."];
         orthogToIm =
-            Orthogonalize[kernel-Map[Project[#,image]&,kernel]] //
-                Simplify;
+            Orthogonalize[kernel - Map[Project[#,image]&, kernel]] // Simplify;
         (* Find that vector that lies in ker(LLstar) but has the same 
            projection on orthogToIm as our existing terms. That vector 
            will give the terms we retain in the transformed version *)
@@ -761,7 +752,7 @@ simplifyOrder[{R_?MultiSeriesFieldQ, U_?MultiSeriesFieldQ},
             ,
                 dPrint["Representation of L is NOT semisimple. ",
                        "Choosing inner product style."];
-                sm = innerProductAlgorithm1z[rm, LL, m, u];
+                sm = innerProductAlgorithm1z[rm, LL, A, m, u];
             ];
         ];
         sm = sm // Chop;
