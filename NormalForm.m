@@ -1048,7 +1048,7 @@ TransformNoisyHopf[rhs_?VectorQ,
         (* TODO make versions of ToPolar and ToCartesian for series fields *)
         dPrint["transformed stochastic system, cartesian:"];
         dPrint[OverDot/@u//MatrixForm, " = ",
-               transformedCartesian // Ar // NN // MatrixForm];
+               transformedCartesian // Ar // NN // Chop // MatrixForm];
         transformedPolar = truncatePolar[ToPolar[Normal[transformedCartesian],
                 u, polarVars], nDpolarScaling, maxOrder];
         dPrint["transformed stochastic system, polar:"];
@@ -1063,7 +1063,7 @@ TransformNoisyHopf[rhs_?VectorQ,
                               MaxOrder->maxOrder];
         dPrint["Two-dimensional reduced system, cartesian: "];
         dPrint[OverDot/@u[[1;;2]]//MatrixForm, " = ",
-               reducedCartesian // Ar // NN // MatrixForm];
+               reducedCartesian // Ar // NN // Chop // MatrixForm];
         result = truncatePolar[ToPolar[Normal[reducedCartesian],
                                        u, polarVars], nDpolarScaling, maxOrder];
         dPrint["Two-dimensional reduced system, polar: "];
