@@ -1114,7 +1114,8 @@ NoisyHopfReduce2D[rhs_?VectorQ,
         cVars = u[[1;;2]]; (* center eigenspace variables *)
         sVars = u[[3;;]]; (* stable eigenspace variables  *)
         (* Check criterion for approximate decoupling of the center variables *)
-        A = D[rhs[[3;;]], {sVars}] /. Thread[u->0] /.Thread[bifParams->0];
+        A = D[rhs[[3;;]], {sVars}] /. Thread[u->0]
+                                   /. Thread[bifParams->0] /. Thread[\[Xi]->0];
         reStableEigenvals = Diagonal[A];
         weakestStableEigenvalue = Max[reStableEigenvals];
         If[Re[weakestStableEigenvalue]>0,
