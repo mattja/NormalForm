@@ -1163,8 +1163,8 @@ AverageCycle[rhs_?VectorQ,
         ArPolar[expr_] := ArrangePolar[expr, Thread[\[Xi] \[Sigma]], {\[Phi]}];
 
         (* Find angular frequency at Hopf point: *)
-        \[Omega] = (rhs[[2]] /.
-             Thread[Join[u,\[Xi],bifParams]->0] // Expand) /. r->0 // Simplify;
+        \[Omega] = (rhs[[2]] /. Thread[Join[u,\[Xi],bifParams]->0] // Expand)
+                /. r->0 // FullSimplify // Chop;
         dPrint["\[Omega] == ", \[Omega]];
         (* Change to rotating frame:*)
         rotPolar = rhs - {0,\[Omega]} /. \[Theta]->\[Phi]+\[Omega] t;
