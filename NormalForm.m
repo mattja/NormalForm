@@ -290,9 +290,9 @@ ToPolar[field_?VectorQ, u_?SymbolListQ, {r_Symbol, \[Theta]_Symbol}] :=
     Module[{udotpolar, thetadot, rdot, therest},
         udotpolar = field /. {u[[1]]->r Cos[\[Theta]],u[[2]]->r Sin[\[Theta]]};
         thetadot = (Cos[\[Theta]] udotpolar[[2]] - 
-                    Sin[\[Theta]]udotpolar[[1]]) /r // TrigFactor;
+                    Sin[\[Theta]]udotpolar[[1]]) / r;
         rdot = (Cos[\[Theta]]udotpolar[[1]] + 
-                Sin[\[Theta]]udotpolar[[2]]) // TrigFactor;
+                Sin[\[Theta]]udotpolar[[2]]);
         therest = udotpolar[[3;;]];
         {rdot,thetadot}~Join~therest
     ]
