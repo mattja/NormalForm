@@ -1027,8 +1027,9 @@ TransformNoisyHopf[rhs_?VectorQ,
         ];
 
         (* Utility functions to collect terms for easy-to-read output: *)
-        Ar[expr_] := Arrange[expr, Thread[\[Xi] \[Sigma]]];
-        ArPolar[expr_] := ArrangePolar[expr, Thread[\[Xi] \[Sigma]],{\[Theta]}];
+        Ar[expr_] := Arrange[expr, Flatten@Outer[Times, \[Xi], \[Sigma]]];
+        ArPolar[expr_] := ArrangePolar[
+                expr, Flatten@Outer[Times, \[Xi], \[Sigma]], {\[Theta]}];
 
         dPrint["\n-----------------------------------------------------------"];
         dPrint["Transformed deterministic system, polar coordinates: ",
@@ -1159,8 +1160,9 @@ AverageCycle[rhs_?VectorQ,
         {r, \[Theta]} = polarVars;
 
         (* Utility functions to collect terms for easy-to-read output: *)
-        Ar[expr_] := Arrange[expr, Thread[\[Xi] \[Sigma]]];
-        ArPolar[expr_] := ArrangePolar[expr, Thread[\[Xi] \[Sigma]], {\[Phi]}];
+        Ar[expr_] := Arrange[expr, Flatten@Outer[Times, \[Xi], \[Sigma]]];
+        ArPolar[expr_] := ArrangePolar[
+                expr, Flatten@Outer[Times, \[Xi], \[Sigma]], {\[Phi]}];
 
         (* Find angular frequency at Hopf point: *)
         \[Omega] = (rhs[[2]] /. Thread[Join[u,\[Xi],bifParams]->0] // Expand)
