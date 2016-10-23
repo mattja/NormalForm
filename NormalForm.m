@@ -33,7 +33,7 @@ NormalFormTransformation::usage =
    parameters in the asymptotic limit, used when truncating power series.\
    e.g. {u1, u2, u3, Sqrt[Global`\[Epsilon]]} means to assume\
    O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.\
- Augmented: whether to compute the normal form of the augmented system,\
+ Extended: whether to compute the normal form of the extended system,\
    that is with phase space extended with dimensions for the (rescaled)\
    bifurcation parameters and their equations \\dot{\\alpha} == 0,\
    thus finding a transformation dependent on the bifurcation parameters.\
@@ -81,7 +81,7 @@ TransformNoisyHopf::usage =
    parameters in the asymptotic limit, used when truncating power series.\
    e.g. {u1, u2, u3, Sqrt[Global`\[Epsilon]]} means to assume\
    O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.\
- Augmented: whether to compute the normal form of the augmented system,\
+ Extended: whether to compute the normal form of the extended system,\
    that is with phase space extended with dimensions for the (rescaled)\
    bifurcation parameters and their equations \\dot{\\alpha} == 0,\
    thus finding a transformation dependent on the bifurcation parameters.\
@@ -798,7 +798,7 @@ Options[NormalFormTransformation] =
     {Verbose->False,
      BifurcationParameters->{Global`\[Epsilon]},
      AsymptoticScaling->{Sqrt[Global`\[Epsilon]]},
-     Augmented->False};
+     Extended->False};
 
 (* Compute the normal form of system, to a specified order. 
     Args:
@@ -823,7 +823,7 @@ Options[NormalFormTransformation] =
           parameters in the asymptotic limit, used when truncating power series.
           e.g. {u1, u2, u3, Sqrt[Global`\[Epsilon]]} means to assume
           O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.
-        Augmented: whether to compute the normal form of the augmented system,
+        Extended: whether to compute the normal form of the extended system,
           that is with phase space extended with dimensions for the (rescaled)
           bifurcation parameters and their equations \dot{\alpha} == 0,
           thus finding a transformation dependent on the bifurcation parameters.
@@ -841,7 +841,7 @@ NormalFormTransformation[rhs_?VectorQ,
         bifParams = OptionValue[BifurcationParameters];
         If[Head[bifParams]=!=List, bifParams={bifParams}];
         nbif = Length[bifParams];
-        augmented = OptionValue[Augmented];
+        extended = OptionValue[Extended];
         asympScaling = OptionValue[AsymptoticScaling];
         asympScaling = Select[vars, FreeQ[asympScaling, #]&]~Join~asympScaling;
         dPrint["Deterministic system using asymptotic scaling ", asympScaling]; 
@@ -859,8 +859,8 @@ NormalFormTransformation[rhs_?VectorQ,
         ];
         RHS = rhs /. Thread[vars->u];
         asympScaling = asympScaling /. Thread[vars->u];
-        If[augmented,
-            (* want normal form of system augmented with bifurcation params *)
+        If[extended,
+            (* want normal form of system extended with bifurcation params *)
             ua = u~Join~\[Alpha];
             (* rescale bif params to symbols \[Alpha] of same order as u_i *) 
             {syms, exponents} = processVars[asympScaling];
@@ -877,7 +877,7 @@ NormalFormTransformation[rhs_?VectorQ,
         RHSseries = MultiSeries[RHS, asympScaling, maxOrder] //Simplify//Chop;
         dPrint["Series approximation to the original deterministic system:\n",
               RHSseries // NN // MatrixForm];
-        If[augmented,
+        If[extended,
             startSeries = RHSseries;
         ,
             (* else transform based on system exactly at bifurcation point *)
@@ -890,7 +890,7 @@ NormalFormTransformation[rhs_?VectorQ,
         {S, U} = Fold[simplifyOrder[#1, #2, ua, maxOrder]&,
                       {startSeries, identityTrans},
                       Range[2, maxOrder]];
-        If[augmented,
+        If[extended,
             (* then de-augment *)
             newrhs = (Normal[S][[1;;-2]] /.
                       Thread[\[Alpha]->bifParams^epsscale]) // Simplify // Chop;
@@ -924,7 +924,7 @@ Options[TransformNoisyHopf] =
      BifurcationParameters->{Global`\[Epsilon]},
      AsymptoticScaling->{Sqrt[Global`\[Epsilon]], Global`\[Sigma]},
      MaxOrder->3,
-     Augmented->False,
+     Extended->False,
      Average->True,
      Rescale->True};
 
@@ -947,7 +947,7 @@ Options[TransformNoisyHopf] =
          parameters in the asymptotic limit, used when truncating power series.
          e.g. {u1, u2, u3, Sqrt[Global`\[Epsilon]]} means to assume
          O(\[Epsilon]) == O(u_i^2) which suits a Hopf or Pitchfork bifurcation.
-       Augmented: whether to compute the normal form of the augmented system,
+       Extended: whether to compute the normal form of the extended system,
          that is with phase space extended with dimensions for the (rescaled)
          bifurcation parameters and their equations \dot{\alpha} == 0,
          thus finding a transformation dependent on the bifurcation parameters.
@@ -970,10 +970,10 @@ TransformNoisyHopf[rhs_?VectorQ,
     Module[{maxOrder, bifParams, n, asympScaling, deterministicScaling, A,
             nDpolarScaling, polarScaling, polarVars, cylVars, centerEigs,
             deterministicRhs, newrhs, trans, transformedCartesian, fullPolar,
-            augmented, average, rescale, result},
+            extended, average, rescale, result},
         verbose = OptionValue[Verbose];
         maxOrder = OptionValue[MaxOrder];
-        augmented = OptionValue[Augmented];
+        extended = OptionValue[Extended];
         average = OptionValue[Average];
         rescale = OptionValue[Rescale];
         bifParams = OptionValue[BifurcationParameters];
@@ -1014,7 +1014,7 @@ TransformNoisyHopf[rhs_?VectorQ,
                                      Verbose->verbose, 
                                      BifurcationParameters->bifParams,
                                      AsymptoticScaling->deterministicScaling,
-                                     Augmented->augmented];
+                                     Extended->extended];
 
         (* validate that we are at Hopf point in first 2 variables *)
         A = D[newrhs, {u}] /. Thread[u->0] /. Thread[bifParams->0];
